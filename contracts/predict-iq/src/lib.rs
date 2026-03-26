@@ -261,7 +261,7 @@ impl PredictIQ {
         crate::modules::governance::get_pending_upgrade(&e)
     }
 
-    pub fn get_upgrade_votes(e: Env) -> Result<(u32, u32), ErrorCode> {
+    pub fn get_upgrade_votes(e: Env) -> Result<crate::types::UpgradeStats, ErrorCode> {
         crate::modules::governance::get_upgrade_votes(&e)
     }
 

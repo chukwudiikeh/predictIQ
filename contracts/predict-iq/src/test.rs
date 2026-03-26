@@ -743,23 +743,23 @@ fn test_get_upgrade_votes() {
     client.initiate_upgrade(&wasm_hash);
 
     // Initial votes should be (0, 0)
-    let (for_count, against_count) = client.get_upgrade_votes();
-    assert_eq!(for_count, 0);
-    assert_eq!(against_count, 0);
+    let stats = client.get_upgrade_votes();
+    assert_eq!(stats.votes_for, 0);
+    assert_eq!(stats.votes_against, 0);
 
     // One guardian votes for
     client.vote_for_upgrade(&guardian1, &true);
 
-    let (for_count, against_count) = client.get_upgrade_votes();
-    assert_eq!(for_count, 1);
-    assert_eq!(against_count, 0);
+    let stats = client.get_upgrade_votes();
+    assert_eq!(stats.votes_for, 1);
+    assert_eq!(stats.votes_against, 0);
 
     // Another votes against
     client.vote_for_upgrade(&guardian2, &false);
 
-    let (for_count, against_count) = client.get_upgrade_votes();
-    assert_eq!(for_count, 1);
-    assert_eq!(against_count, 1);
+    let stats = client.get_upgrade_votes();
+    assert_eq!(stats.votes_for, 1);
+    assert_eq!(stats.votes_against, 1);
 }
 
 #[test]

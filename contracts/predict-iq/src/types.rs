@@ -149,6 +149,13 @@ pub struct PendingUpgrade {
     pub votes_against: Vec<Address>,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UpgradeStats {
+    pub votes_for: u32,
+    pub votes_against: u32,
+}
+
 // Constants for upgrade governance
 pub const TIMELOCK_DURATION: u64 = 48 * 60 * 60; // 48 hours in seconds
 pub const MAJORITY_THRESHOLD_PERCENT: u32 = 51; // 51% for majority
