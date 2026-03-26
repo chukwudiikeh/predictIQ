@@ -2,13 +2,16 @@
 use crate::errors::ErrorCode;
 use crate::types::{CreatorReputation, MarketStatus, MarketTier, OracleConfig};
 use crate::{PredictIQ, PredictIQClient};
-use soroban_sdk::{testutils::Address as _, Address, Env, String, Vec};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger as _},
+    Address, Env, String, Vec,
+};
 
 fn setup() -> (Env, PredictIQClient<'static>, Address) {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register_contract(None, PredictIQ);
+    let contract_id = env.register(PredictIQ, ());
     let client = PredictIQClient::new(&env, &contract_id);
 
     let admin = Address::generate(&env);
@@ -23,16 +26,16 @@ fn test_create_market_basic() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -67,6 +70,9 @@ fn test_create_market_with_single_option_fails() {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -92,14 +98,17 @@ fn test_create_market_with_too_many_outcomes() {
     let (env, client, admin) = setup();
 
     let mut options = Vec::new(&env);
-    for i in 0..101 {
-        options.push_back(String::from_str(&env, &format!("Option{}", i)));
+    for _i in 0..101 {
+        options.push_back(String::from_str(&env, "x"));
     }
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -124,20 +133,20 @@ fn test_create_market_with_too_many_outcomes() {
 fn test_create_market_deadline_in_past() {
     let (env, client, admin) = setup();
 
-    env.ledger().with_mut(|li| li.timestamp = 1000);
+    env.ledger().set_timestamp(1000);
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -155,7 +164,7 @@ fn test_create_market_deadline_in_past() {
         &0,
     );
 
-    assert_eq!(result, Err(Ok(ErrorCode::InvalidDeadline)));
+    assert_eq!(result, Err(Ok(ErrorCode::DeadlinePassed)));
 }
 
 #[test]
@@ -164,16 +173,16 @@ fn test_create_market_resolution_before_deadline() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -191,7 +200,7 @@ fn test_create_market_resolution_before_deadline() {
         &0,
     );
 
-    assert_eq!(result, Err(Ok(ErrorCode::InvalidDeadline)));
+    assert_eq!(result, Err(Ok(ErrorCode::DeadlinePassed)));
 }
 
 #[test]
@@ -200,16 +209,16 @@ fn test_market_id_increments() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -298,16 +307,16 @@ fn test_market_tiers() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 200,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -352,7 +361,10 @@ fn test_market_tiers() {
         &0,
     );
 
-    assert_eq!(client.get_market(&basic_id).unwrap().tier, MarketTier::Basic);
+    assert_eq!(
+        client.get_market(&basic_id).unwrap().tier,
+        MarketTier::Basic
+    );
     assert_eq!(client.get_market(&pro_id).unwrap().tier, MarketTier::Pro);
     assert_eq!(
         client.get_market(&inst_id).unwrap().tier,
@@ -366,21 +378,20 @@ fn test_prune_market_before_grace_period() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
 
-    env.ledger().with_mut(|li| li.timestamp = 1000);
+    env.ledger().set_timestamp(1000);
 
     let market_id = client.create_market(
         &admin,
@@ -400,7 +411,7 @@ fn test_prune_market_before_grace_period() {
 
     // Try to prune immediately (before 30 days)
     let result = client.try_prune_market(&market_id);
-    assert_eq!(result, Err(Ok(ErrorCode::GracePeriodActive)));
+    assert_eq!(result, Err(Ok(ErrorCode::MarketStillActive)));
 }
 
 #[test]
@@ -409,21 +420,20 @@ fn test_prune_market_after_grace_period() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
 
-    env.ledger().with_mut(|li| li.timestamp = 1000);
+    env.ledger().set_timestamp(1000);
 
     let market_id = client.create_market(
         &admin,
@@ -442,7 +452,7 @@ fn test_prune_market_after_grace_period() {
     client.resolve_market(&market_id, &0);
 
     // Advance time past 30 days (2,592,000 seconds)
-    env.ledger().with_mut(|li| li.timestamp = 1000 + 2_592_001);
+    env.ledger().set_timestamp(1000 + 2_592_001);
 
     // Prune should succeed
     let result = client.try_prune_market(&market_id);
@@ -455,16 +465,15 @@ fn test_prune_unresolved_market_fails() {
 
     let options = Vec::from_array(
         &env,
-        [
-            String::from_str(&env, "Yes"),
-            String::from_str(&env, "No"),
-        ],
+        [String::from_str(&env, "Yes"), String::from_str(&env, "No")],
     );
 
     let oracle_config = OracleConfig {
         oracle_address: Address::generate(&env),
         feed_id: String::from_str(&env, "test"),
         min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 100,
     };
 
     let token = Address::generate(&env);
@@ -484,5 +493,112 @@ fn test_prune_unresolved_market_fails() {
 
     // Try to prune without resolving
     let result = client.try_prune_market(&market_id);
-    assert_eq!(result, Err(Ok(ErrorCode::MarketNotResolved)));
+    assert_eq!(result, Err(Ok(ErrorCode::MarketNotActive)));
+}
+
+#[test]
+fn test_prune_market_with_unclaimed_rewards_fails() {
+    let (env, client, admin) = setup();
+
+    let options = Vec::from_array(
+        &env,
+        [
+            String::from_str(&env, "Yes"),
+            String::from_str(&env, "No"),
+        ],
+    );
+
+    let oracle_config = OracleConfig {
+        oracle_address: Address::generate(&env),
+        feed_id: String::from_str(&env, "test"),
+        min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 100,
+    };
+
+    let token = Address::generate(&env);
+    let bettor = Address::generate(&env);
+
+    env.ledger().set_timestamp(1000);
+
+    let market_id = client.create_market(
+        &admin,
+        &String::from_str(&env, "Test Market"),
+        &options,
+        &2000,
+        &3000,
+        &oracle_config,
+        &MarketTier::Basic,
+        &token,
+        &0,
+        &0,
+    );
+
+    // Place a bet on outcome 0
+    client.place_bet(&bettor, &market_id, &0, &1_000_000, &token, &None);
+
+    // Resolve market with outcome 0 as winner
+    client.resolve_market(&market_id, &0);
+
+    // Advance time past 30 days
+    env.ledger().set_timestamp(1000 + 2_592_001);
+
+    // Try to prune with unclaimed rewards - should fail
+    let result = client.try_prune_market(&market_id);
+    assert_eq!(result, Err(Ok(ErrorCode::MarketStillActive)));
+}
+
+#[test]
+fn test_prune_market_after_all_rewards_claimed() {
+    let (env, client, admin) = setup();
+
+    let options = Vec::from_array(
+        &env,
+        [
+            String::from_str(&env, "Yes"),
+            String::from_str(&env, "No"),
+        ],
+    );
+
+    let oracle_config = OracleConfig {
+        oracle_address: Address::generate(&env),
+        feed_id: String::from_str(&env, "test"),
+        min_responses: Some(1),
+        max_staleness_seconds: 3600,
+        max_confidence_bps: 100,
+    };
+
+    let token = Address::generate(&env);
+    let bettor = Address::generate(&env);
+
+    env.ledger().set_timestamp(1000);
+
+    let market_id = client.create_market(
+        &admin,
+        &String::from_str(&env, "Test Market"),
+        &options,
+        &2000,
+        &3000,
+        &oracle_config,
+        &MarketTier::Basic,
+        &token,
+        &0,
+        &0,
+    );
+
+    // Place a bet on outcome 0
+    client.place_bet(&bettor, &market_id, &0, &1_000_000, &token, &None);
+
+    // Resolve market with outcome 0 as winner
+    client.resolve_market(&market_id, &0);
+
+    // Claim winnings
+    client.claim_winnings(&bettor, &market_id, &token);
+
+    // Advance time past 30 days
+    env.ledger().set_timestamp(1000 + 2_592_001);
+
+    // Prune should succeed after all rewards claimed
+    let result = client.try_prune_market(&market_id);
+    assert!(result.is_ok());
 }
