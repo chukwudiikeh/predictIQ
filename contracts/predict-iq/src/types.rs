@@ -169,3 +169,6 @@ pub const BET_TTL_HIGH_THRESHOLD: u32 = 3_110_400; // ~180 days — target lifet
 
 pub const GOV_TTL_LOW_THRESHOLD: u32 = 1_555_200;  // ~90 days
 pub const GOV_TTL_HIGH_THRESHOLD: u32 = 3_110_400; // ~180 days
+
+/// Issue #54: Reserved sentinel index for cancellation votes, distinct from any valid outcome index.
+pub const CANCEL_OUTCOME_INDEX: u32 = u32::MAX;
