@@ -45,7 +45,6 @@ pub struct AppState {
     pub(crate) db: Database,
     pub(crate) blockchain: BlockchainClient,
     pub(crate) metrics: Metrics,
-    pub(crate) newsletter_rate_limiter: IpRateLimiter,
     pub(crate) email_service: EmailService,
     pub(crate) email_queue: EmailQueue,
     pub(crate) webhook_handler: WebhookHandler,
