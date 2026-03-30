@@ -266,7 +266,7 @@ impl ApiKeyAuth {
     }
 
     pub fn verify(&self, key: &str) -> bool {
-        self.valid_keys.iter().any(|k| k == key)
+        self.valid_keys.is_empty() || self.valid_keys.iter().any(|k| k == key)
     }
 }
 
@@ -319,6 +319,9 @@ impl IpWhitelist {
     }
 
     pub fn is_allowed(&self, ip: &str) -> bool {
+        if self.allowed_ips.is_empty() {
+            return true;
+        }
         if let Ok(addr) = ip.parse::<IpAddr>() {
             return self.allowed_ips.contains(&addr);
         }

@@ -78,8 +78,8 @@ pub async fn run() -> anyhow::Result<()> {
     let bind_addr = config.bind_addr;
 
     let rate_limiter = Arc::new(RateLimiter::new());
-    let _api_key_auth = Arc::new(ApiKeyAuth::new(config.api_keys.clone()));
-    let _ip_whitelist = Arc::new(IpWhitelist::new(config.admin_whitelist_ips.clone()));
+    let api_key_auth = Arc::new(ApiKeyAuth::new(config.api_keys.clone()));
+    let ip_whitelist = Arc::new(IpWhitelist::new(config.admin_whitelist_ips.clone()));
 
     // Setup shutdown coordination for 3 workers: rate limiter cleanup, blockchain (2), email queue
     let shutdown_coordinator = ShutdownCoordinator::new(4);
@@ -182,7 +182,7 @@ pub async fn run() -> anyhow::Result<()> {
         .route("/api/markets/featured", get(handlers::featured_markets))
         .route("/api/content", get(handlers::content))
         .layer(middleware::from_fn_with_state(
-            rate_limiter.clone(),
+            (rate_limiter.clone(), TrustProxy(config.trust_proxy)),
             security::global_rate_limit_middleware,
         ))
         .with_state(state.clone());
@@ -209,11 +209,15 @@ pub async fn run() -> anyhow::Result<()> {
             axum::routing::delete(handlers::newsletter_gdpr_delete),
         )
         .layer(middleware::from_fn_with_state(
-            rate_limiter.clone(),
+            (rate_limiter.clone(), TrustProxy(config.trust_proxy)),
             rate_limit::newsletter_rate_limit_middleware,
         ))
         .with_state(state.clone());
 
+    // Admin routes require API key authentication (if configured) and IP whitelisting (if configured).
+    // When API_KEYS is set, requests must include a valid x-api-key header.
+    // When ADMIN_WHITELIST_IPS is set, only whitelisted IPs can access admin endpoints.
+    // Invalid API key returns 401 Unauthorized, non-whitelisted IPs return 403 Forbidden.
     let admin_routes = Router::new()
         .route(
             "/api/markets/:market_id/resolve",
@@ -229,6 +233,18 @@ pub async fn run() -> anyhow::Result<()> {
             "/api/v1/email/queue/stats",
             get(handlers::email_queue_stats),
         )
+        .layer(middleware::from_fn_with_state(
+            (ip_whitelist.clone(), TrustProxy(config.trust_proxy)),
+            security::ip_whitelist_middleware,
+        ))
+        .layer(middleware::from_fn_with_state(
+            api_key_auth.clone(),
+            security::api_key_middleware,
+        ))
+        .layer(middleware::from_fn_with_state(
+            (rate_limiter.clone(), TrustProxy(config.trust_proxy)),
+            rate_limit::admin_rate_limit_middleware,
+        ))
         .layer(TraceLayer::new_for_http())
         .with_state(state.clone());
 
