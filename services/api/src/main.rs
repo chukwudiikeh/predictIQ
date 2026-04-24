@@ -6,6 +6,7 @@ mod email;
 mod handlers;
 mod metrics;
 mod newsletter;
+mod pagination;
 mod rate_limit;
 mod security;
 mod validation;
